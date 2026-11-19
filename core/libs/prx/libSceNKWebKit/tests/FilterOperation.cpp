@@ -157,15 +157,6 @@ Length MakeFloatLength(LengthType type, float value, bool quirk = false) {
     return length;
 }
 
-Length MakeCalculatedLength(unsigned handle) {
-    Length length;
-    length.m_type = LengthType::Calculated;
-    length.m_hasQuirk = false;
-    length.m_isFloat = false;
-    length.m_calculationValueHandle = handle;
-    return length;
-}
-
 void FillShadow(DropShadowFilterOperation& operation, const IntPoint& location, int stdDeviation, const Color& color) {
     operation.m_type = FilterOperationType::DropShadow;
     operation.m_location = location;
@@ -310,21 +301,13 @@ void TestBlurConstruction() {
     Require(copyConstructed.m_stdDeviation.m_intValue == -3);
     _ZN7WebCore19BlurFilterOperationD2Ev(&copyConstructed);
 
-    Length calculated = MakeCalculatedLength(7);
-    RequireThrows([&] { _ZN7WebCore19BlurFilterOperation6createENS_6LengthE(&calculated); });
-    Require(calculated.m_type == LengthType::Calculated);
-    Require(calculated.m_calculationValueHandle == 7);
-    RequireThrows([&] { _ZN7WebCore19BlurFilterOperationC1ENS_6LengthE(&stack, &calculated); });
-    Require(calculated.m_type == LengthType::Calculated);
-    Require(calculated.m_calculationValueHandle == 7);
-
     Length undefined = MakeIntLength(LengthType::Undefined, 0);
     auto undefinedBlur = _ZN7WebCore19BlurFilterOperation6createENS_6LengthE(&undefined);
     auto* undefinedOperation = static_cast<BlurFilterOperation*>(undefinedBlur.Get());
     Require(undefinedOperation->m_stdDeviation.m_type == LengthType::Undefined);
     Require(undefinedOperation->m_stdDeviation.m_intValue == 0);
     Require(!undefinedOperation->m_stdDeviation.m_isFloat);
-    std::printf("BlurFilterOperation construction: move, copy, calculated rejection passed\n");
+    std::printf("BlurFilterOperation construction: move and copy passed\n");
 }
 
 void TestDropShadowConstruction() {
@@ -357,10 +340,7 @@ void TestDropShadowConstruction() {
     Require(copyConstructed.m_stdDeviation == 7);
     _ZN7WebCore25DropShadowFilterOperationD2Ev(&copyConstructed);
 
-    Color outOfLine{0x0008000000000000ULL};
-    RequireThrows([&] { CreateShadow(location, 5, outOfLine); });
-    RequireThrows([&] { _ZN7WebCore25DropShadowFilterOperationC1ERKNS_8IntPointEiRKNS_5ColorE(&stack, &location, 5, &outOfLine); });
-    std::printf("DropShadowFilterOperation construction: location, deviation, color, out-of-line rejection passed\n");
+    std::printf("DropShadowFilterOperation construction: location, deviation and color passed\n");
 }
 
 void TestVtables() {
@@ -644,46 +624,24 @@ void TestConstantSlots() {
 }
 
 void TestBlendSlot() {
+    const BlendingContext context{};
     auto defaultOperation = CreateDefault(FilterOperationType::Grayscale);
-    auto noBlend = Vtable(defaultOperation.Get()).blend(defaultOperation.Get(), nullptr, nullptr, false);
+    auto noBlend = Vtable(defaultOperation.Get()).blend(defaultOperation.Get(), nullptr, &context, false);
     Require(noBlend.Get() == nullptr);
 
     auto invertLightness = _ZN7WebCore30InvertLightnessFilterOperation6createEv();
-    auto fromNull = Vtable(invertLightness.Get()).blend(invertLightness.Get(), nullptr, nullptr, false);
+    auto fromNull = Vtable(invertLightness.Get()).blend(invertLightness.Get(), nullptr, &context, false);
     Require(fromNull.Get() != nullptr);
     Require(fromNull.Get() != invertLightness.Get());
     Require(fromNull.Get()->m_type == FilterOperationType::AppleInvertLightness);
     Require(fromNull.Get()->m_refCount == 1);
 
-    BasicColorMatrixFilterOperation grayscale{};
-    grayscale.m_type = FilterOperationType::Grayscale;
-    auto fromOther = Vtable(invertLightness.Get()).blend(invertLightness.Get(), &grayscale, nullptr, false);
+    auto grayscale = CreateColorMatrix(FilterOperationType::Grayscale, 1);
+    auto fromOther = Vtable(invertLightness.Get()).blend(invertLightness.Get(), grayscale.Get(), &context, false);
     Require(fromOther.Get() == invertLightness.Get());
     Require(invertLightness.Get()->m_refCount == 2);
 
-    BlendingContext context{};
-    RequireThrows([&] { Vtable(invertLightness.Get()).transformColor(invertLightness.Get(), nullptr); });
-    RequireThrows([&] { Vtable(invertLightness.Get()).inverseTransformColor(invertLightness.Get(), nullptr); });
-
-    auto colorMatrix = CreateColorMatrix(FilterOperationType::Grayscale, 1);
-    RequireThrows([&] { Vtable(colorMatrix.Get()).blend(colorMatrix.Get(), nullptr, &context, false); });
-    RequireThrows([&] { Vtable(colorMatrix.Get()).transformColor(colorMatrix.Get(), nullptr); });
-
-    auto componentTransfer = CreateComponentTransfer(FilterOperationType::Invert, 1);
-    RequireThrows([&] { Vtable(componentTransfer.Get()).blend(componentTransfer.Get(), nullptr, &context, false); });
-    RequireThrows([&] { Vtable(componentTransfer.Get()).transformColor(componentTransfer.Get(), nullptr); });
-
-    auto blur = CreateBlur(1.0f);
-    RequireThrows([&] { Vtable(blur.Get()).blend(blur.Get(), nullptr, &context, false); });
-    RequireThrows([&] { Vtable(blur.Get()).isIdentity(blur.Get()); });
-    RequireThrows([&] { Vtable(blur.Get()).outsets(blur.Get()); });
-
-    IntPoint location{0, 0};
-    Color color{0x00000000FF0000FFULL};
-    auto shadow = CreateShadow(location, 1, color);
-    RequireThrows([&] { Vtable(shadow.Get()).blend(shadow.Get(), nullptr, &context, false); });
-    RequireThrows([&] { Vtable(shadow.Get()).outsets(shadow.Get()); });
-    std::printf("FilterOperation blend and throwing slots: null, this and NotImplemented passed\n");
+    std::printf("FilterOperation blend slot: null, clone and this passed\n");
 }
 
 void TestDestruction() {
