@@ -357,16 +357,12 @@ static_assert(sizeof(FilterOperation) == 16);
 struct DefaultFilterOperation : public FilterOperation {
     FilterOperationType m_representedType{FilterOperationType::Default};
     std::uint8_t m_subPad[7]{0, 0, 0, 0, 0, 0, 0};
-
-    FilterOperationType representedType() const { return m_representedType; }
 };
 
 static_assert(sizeof(DefaultFilterOperation) == 24);
 
 struct BlurFilterOperation : public FilterOperation {
     Length m_stdDeviation;
-
-    const Length& stdDeviation() const { return m_stdDeviation; }
 };
 
 static_assert(sizeof(BlurFilterOperation) == 24);
@@ -375,12 +371,6 @@ struct DropShadowFilterOperation : public FilterOperation {
     IntPoint m_location;
     int m_stdDeviation{0};
     Color m_color;
-
-    int x() const { return m_location.m_x; }
-    int y() const { return m_location.m_y; }
-    IntPoint location() const { return m_location; }
-    int stdDeviation() const { return m_stdDeviation; }
-    const Color& color() const { return m_color; }
 };
 
 static_assert(sizeof(DropShadowFilterOperation) == 40);
@@ -392,16 +382,12 @@ static_assert(sizeof(InvertLightnessFilterOperation) == 16);
 
 struct BasicColorMatrixFilterOperation : public FilterOperation {
     double m_amount{0.0};
-
-    double amount() const { return m_amount; }
 };
 
 static_assert(sizeof(BasicColorMatrixFilterOperation) == 24);
 
 struct BasicComponentTransferFilterOperation : public FilterOperation {
     double m_amount{0.0};
-
-    double amount() const { return m_amount; }
 };
 
 static_assert(sizeof(BasicComponentTransferFilterOperation) == 24);
